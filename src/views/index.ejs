@@ -1,0 +1,31 @@
+<div class="consent">
+  <div class="row">
+    <div class="col s12 m6">
+      <div class="card">
+        <div class="card-content black-text">
+          <span class="card-title">允許存取</span>
+          <p>個人檔案(必要資訊)</p>
+          <p>您的姓名（阿哲）、個人圖片和狀態消息</p>
+        </div>
+        <form action="/authorize/consent"></form>
+        <input type="hidden" name="client_id" value="<%= query.client_id %>" />
+        <div class="card-action">
+          <button
+            name="allow"
+            value="true"
+            class="waves-effect waves-light btn-small"
+          >
+            許可
+          </button>
+          <button
+            name="deny"
+            value="true"
+            class="waves-effect waves-light btn-small red"
+          >
+            取消
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

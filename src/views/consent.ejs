@@ -1,0 +1,44 @@
+<div class="consent">
+  <div class="row">
+    <div class="col s12 m6">
+      <div class="card">
+        <div class="card-content black-text">
+          <span class="card-title">允許存取</span>
+          <p>個人檔案(必要資訊)</p>
+          <p>您的帳戶個人圖片和狀態消息</p>
+        </div>
+        <form action="/authorize/consent" method="POST">
+            <input
+          type="hidden"
+          name="response_type"
+          value="<%= query.response_type %>"
+        />
+        <input type="hidden" name="client_id" value="<%= query.client_id %>" />
+        <input
+          type="hidden"
+          name="redirect_uri"
+          value="<%= query.redirect_uri %>"
+        />
+        <input type="hidden" name="state" value="<%= query.state %>" />
+        <input type="hidden" name="scope" value="<%= query.scope %>" />
+        <div class="card-action">
+          <button
+            name="allow"
+            value="true"
+            class="waves-effect waves-light btn-small"
+          >
+            許可
+          </button>
+          <button
+            name="deny"
+            value="true"
+            class="waves-effect waves-light btn-small red"
+          >
+            取消
+          </button>
+        </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

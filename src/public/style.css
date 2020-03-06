@@ -1,0 +1,20 @@
+.consent {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.card {
+  width: 400px;
+}
+
+.card-action {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.card-action button{
+  margin-left: 12px;
+}
