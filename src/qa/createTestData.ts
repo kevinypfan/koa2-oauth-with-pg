@@ -45,7 +45,7 @@ export class TestData {
         .values([
           {
             client_secret: await generateRandomToken(),
-            scopes: "profile",
+            scope: "profile",
             redirect_uris: "http://localhost:3000",
             grants: "authorization_code"
           }

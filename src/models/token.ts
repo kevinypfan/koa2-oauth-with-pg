@@ -27,6 +27,9 @@ export class Token {
   @Column("text")
   refresh_token: string;
 
+  @Column("text")
+  scope: string;
+
   @Column({
     type: "boolean",
     default: false

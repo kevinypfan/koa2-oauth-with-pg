@@ -1,7 +1,7 @@
 import { postgresDB } from "./databases/postgres-db";
 import app from "./app";
 import { qaRouter } from "./routes/qa-routes";
-import { restRouter } from "./routes/rest-routes";
+import { userRouter } from "./routes/user-routes";
 import { testRouter } from "./routes/test-routes";
 import { authRouter } from "./routes/auth-routes";
 import { tokenRouter } from "./routes/token-routes";
@@ -50,9 +50,9 @@ const bootstrap = async () => {
 
   app.use(qaRouter.routes()).use(qaRouter.allowedMethods());
 
-  app.use(testRouter.routes()).use(restRouter.allowedMethods());
+  app.use(testRouter.routes()).use(userRouter.allowedMethods());
 
-  app.use(restRouter.routes()).use(restRouter.allowedMethods());
+  app.use(userRouter.routes()).use(userRouter.allowedMethods());
 
   app.use(authRouter.routes()).use(authRouter.allowedMethods());
   app.use(tokenRouter.routes()).use(tokenRouter.allowedMethods());

@@ -177,7 +177,7 @@ export default class AuthController {
         throw "redirect_uri has wrong";
       }
 
-      const clientScopes = client.scopes.split(",");
+      const clientScopes = client.scope.split(",");
       const requestScopes = authorizeModel.scope.split(",");
       if (!requestScopes.map(el => clientScopes.includes(el)).every(el => el)) {
         throw "scope has not accept value!";

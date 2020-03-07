@@ -31,9 +31,8 @@ export class Client {
     type: "text",
     default: ""
   })
-  scopes: string;
+  scope: string;
 
-  
   @Column({
     type: "boolean",
     default: false

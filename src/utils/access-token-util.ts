@@ -12,7 +12,8 @@ import { generateRandomToken } from "./token-util";
 
 export const genToken: Function = async (
   client_id: string,
-  user_id: string
+  user_id: string,
+  scope: string
 ) => {
   const tokenRepository: Repository<Token> = getManager().getRepository(Token);
 
@@ -24,6 +25,7 @@ export const genToken: Function = async (
     .add(30, "days")
     .toDate();
   tokenToBeSaved.refresh_token = await generateRandomToken();
+  tokenToBeSaved.scope = scope;
 
   const errors: ValidationError[] = await validate(tokenToBeSaved); // errors is an array of validation errors
   if (errors.length > 0) {

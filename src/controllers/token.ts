@@ -3,18 +3,96 @@ import { RouterContext } from "koa-router";
 import { CodeModel } from "../validations/code-model";
 import { PasswordModel } from "../validations/password-model";
 import { TokenModel } from "../validations/token-model";
+import { RevokeModel } from "../validations/revoke-model";
+import { RefreshModel } from "../validations/refresh-model";
 import { getManager, Repository, Not, Equal } from "typeorm";
 import { validate, ValidationError } from "class-validator";
 import { URL } from "url";
 import * as bcrypt from "bcryptjs";
+import * as moment from "moment";
 
 import { Client } from "../models/client";
 import { Code } from "../models/code";
 import { User } from "../models/user";
+import { Token } from "../models/token";
 
 import { genToken } from "../utils/access-token-util";
 
 export default class TokenController {
+  public static async postRevokeToken(ctx: Context & RouterContext) {
+    try {
+      const revokeModel: RevokeModel = new RevokeModel();
+      revokeModel.client_id = ctx.request.body.client_id;
+      revokeModel.client_secret = ctx.request.body.client_secret;
+      revokeModel.access_token = ctx.request.body.access_token;
+      const tokenErrors = await validate(revokeModel);
+      if (tokenErrors.length > 0) {
+        throw tokenErrors;
+      }
+
+      const tokenRepository: Repository<Token> = getManager().getRepository(
+        Token
+      );
+      const token = await tokenRepository.findOne({
+        access_token: revokeModel.access_token
+      });
+
+      if (!token) {
+        throw "Not found access token!";
+      }
+      if (new Date() > new Date(token.expires_in)) {
+        throw "access token expired!";
+      }
+
+      await tokenRepository.update(token.id, {
+        revoked: true
+      });
+
+      ctx.body = {
+        status_code: 200,
+        message: "Request successful"
+      };
+    } catch (error) {
+      ctx.status = 400;
+      ctx.body = {
+        error: "invalid_request",
+        error_description: error
+      };
+    }
+  }
+
+  public static async getVerifyToken(ctx: Context & RouterContext) {
+    try {
+      const tokenRepository: Repository<Token> = getManager().getRepository(
+        Token
+      );
+      const token = await tokenRepository.findOne({
+        access_token: ctx.request.query.access_token
+      });
+
+      if (!token) {
+        throw "Not found access token!";
+      }
+      if (new Date() > new Date(token.expires_in)) {
+        throw "access token expired!";
+      }
+
+      const responseAccessToken = { ...token, token_type: "Bearer" };
+
+      delete responseAccessToken["id"];
+      delete responseAccessToken["revoked"];
+      delete responseAccessToken["created_at"];
+      delete responseAccessToken["updated_at"];
+
+      ctx.body = responseAccessToken;
+    } catch (error) {
+      ctx.status = 400;
+      ctx.body = {
+        error: "invalid_request",
+        error_description: error
+      };
+    }
+  }
   public static async postToken(ctx: Context & RouterContext) {
     try {
       const tokenModel: TokenModel = new TokenModel();
@@ -84,7 +162,8 @@ export default class TokenController {
           }
           const newAuthorizationCodeTokenObj: Object = await genToken(
             code.client_id,
-            code.user_id
+            code.user_id,
+            client.scope
           );
 
           const responseAuthorizationCodeToken = {
@@ -139,7 +218,8 @@ export default class TokenController {
           }
           const newPasswordTokenObj: Object = await genToken(
             tokenModel.client_id,
-            user.user_id
+            user.user_id,
+            client.scope
           );
 
           const responsePasswordToken = {
@@ -155,6 +235,60 @@ export default class TokenController {
           delete responsePasswordToken["updated_at"];
 
           return (ctx.body = responsePasswordToken);
+
+        case "refresh_token":
+          const refreshModel: RefreshModel = new RefreshModel();
+          refreshModel.refresh_token = ctx.request.body.refresh_token;
+          const refreshErrors = await validate(refreshModel);
+          if (refreshErrors.length > 0) {
+            throw refreshErrors;
+          }
+          const tokenRepository: Repository<Token> = getManager().getRepository(
+            Token
+          );
+          const oldToken = await tokenRepository.findOne({
+            refresh_token: refreshModel.refresh_token
+          });
+
+          if (!oldToken) {
+            throw "Not found refresh token!";
+          }
+
+          if (oldToken.revoked) {
+            throw "refresh token has been used!";
+          }
+
+          if (
+            new Date() >
+            moment(new Date(oldToken.expires_in))
+              .add(10, "days")
+              .toDate()
+          ) {
+            throw "refresh token expired!";
+          }
+          await tokenRepository.update(oldToken.id, {
+            revoked: true
+          });
+
+          const newRefreshModelObj: Object = await genToken(
+            client.client_id,
+            oldToken.user_id,
+            client.scope
+          );
+
+          const responseRefreshModel = {
+            ...newRefreshModelObj,
+            token_type: "Bearer"
+          };
+          responseRefreshModel["expires_in"] = new Date(
+            responseRefreshModel["expires_in"]
+          ).valueOf();
+          delete responseRefreshModel["id"];
+          delete responseRefreshModel["revoked"];
+          delete responseRefreshModel["created_at"];
+          delete responseRefreshModel["updated_at"];
+
+          return (ctx.body = responseRefreshModel);
 
         default:
           throw "grant_type has wrong";
