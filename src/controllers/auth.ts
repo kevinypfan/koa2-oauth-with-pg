@@ -69,7 +69,8 @@ export default class AuthController {
     if (errors.length > 0) {
       return await ctx.render("error_page", {
         errorCode: 400,
-        errorMessage: "Bad Request!"
+        errorName: "Bad Request!",
+        errorMessage: errors
       });
     }
     // errorMessage=ACCOUNT_LOGIN_FAIL&errorCode=445
@@ -97,7 +98,8 @@ export default class AuthController {
       console.log(errors);
       return await ctx.render("error_page", {
         errorCode: 400,
-        errorMessage: "Bad Request!"
+        errorName: "Bad Request!",
+        errorMessage: errors
       });
     }
 
@@ -153,7 +155,8 @@ export default class AuthController {
       if (errors.length > 0) {
         return await ctx.render("error_page", {
           errorCode: 400,
-          errorMessage: "Bad Request!"
+          errorName: "Bad Request!",
+          errorMessage: errors
         });
       }
       const clientRepository: Repository<Client> = getManager().getRepository(
@@ -270,7 +273,8 @@ export default class AuthController {
       console.log(errors);
       return await ctx.render("error_page", {
         errorCode: 400,
-        errorMessage: "Bad Request!"
+        errorName: "Bad Request!",
+        errorMessage: errors
       });
     }
     console.log(`allow => ${ctx.request.body.allow === true}`);
@@ -292,7 +296,8 @@ export default class AuthController {
           console.log(errors);
           return await ctx.render("error_page", {
             errorCode: 400,
-            errorMessage: "Bad Request!"
+            errorName: "Bad Request!",
+            errorMessage: errors
           });
         } else {
           await consentRepository.save(consentToBeUpdated);
@@ -312,7 +317,8 @@ export default class AuthController {
           console.log(errors);
           return await ctx.render("error_page", {
             errorCode: 400,
-            errorMessage: "Bad Request!"
+            errorName: "Bad Request!",
+            errorMessage: errors
           });
         } else {
           await consentRepository.save(consentToBeSaved);
@@ -340,7 +346,8 @@ export default class AuthController {
     if (errors.length > 0 || !ctx.session.user_id) {
       return await ctx.render("error_page", {
         errorCode: 400,
-        errorMessage: "Bad Request!"
+        errorName: "Bad Request!",
+        errorMessage: errors
       });
     }
 
