@@ -55,6 +55,7 @@ import { generateRandomToken } from "../utils/token-util";
 import { AuthorizeModel } from "../validations/authorize-model";
 import { AuthenticateModel } from "../validations/authenticate-model";
 import { URLSearchParams, URL } from "url";
+import { Session } from "inspector";
 
 export default class AuthController {
   public static async noautoLogin(ctx: Context & RouterContext) {
@@ -127,9 +128,7 @@ export default class AuthController {
       });
     }
 
-    ctx.session = {
-      user_id: user.user_id
-    };
+    ctx.session.user_id = user.user_id;
 
     const searchParams = new URLSearchParams();
     searchParams.append("response_type", authenticateModel.response_type);
@@ -172,11 +171,15 @@ export default class AuthController {
       }
 
       const clientRedirectUris = client.redirect_uris.split(",");
+      const clientRedirectUrisParsered = clientRedirectUris.map(item => {
+        let redirectUri = new URL(item);
+        return redirectUri.origin + redirectUri.pathname;
+      });
 
       let redirectUri = new URL(authorizeModel.redirect_uri);
       let parseUrl = redirectUri.origin + redirectUri.pathname;
 
-      if (!clientRedirectUris.includes(parseUrl)) {
+      if (!clientRedirectUrisParsered.includes(parseUrl)) {
         throw "redirect_uri has wrong";
       }
 
@@ -344,10 +347,14 @@ export default class AuthController {
     authorizeModel.state = ctx.request.query.state;
     const errors = await validate(authorizeModel);
     if (errors.length > 0 || !ctx.session.user_id) {
+      console.log("here error");
+      console.log(errors.length);
+      console.log(ctx.session.user_id);
+
       return await ctx.render("error_page", {
         errorCode: 400,
         errorName: "Bad Request!",
-        errorMessage: errors
+        errorMessage: errors || ctx.session
       });
     }
 
