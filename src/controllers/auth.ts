@@ -137,7 +137,7 @@ export default class AuthController {
     searchParams.append("state", authenticateModel.state);
     searchParams.append("scope", authenticateModel.scope);
 
-    ctx.redirect("/authorize/consent?" + searchParams.toString());
+    return ctx.redirect("/authorize/consent?" + searchParams.toString());
     // /oauth2/v2.1/authorize/consent?scope=openid+profile&response_type=code&state=init&redirect_uri=https%3A%2F%2Fwww.learningcity.mlc.edu.tw%2Fapi%2Fauth&client_id=1605736550
   }
 
@@ -335,7 +335,7 @@ export default class AuthController {
     searchParams.append("state", authorizeModel.state);
     searchParams.append("scope", authorizeModel.scope);
 
-    ctx.redirect("/authorize?" + searchParams.toString());
+    return ctx.redirect("/authorize?" + searchParams.toString());
   }
 
   public static async getAuthorizeConsent(ctx: Context & RouterContext) {
@@ -346,16 +346,32 @@ export default class AuthController {
     authorizeModel.scope = ctx.request.query.scope;
     authorizeModel.state = ctx.request.query.state;
     const errors = await validate(authorizeModel);
-    if (errors.length > 0 || !ctx.session.user_id) {
-      console.log("here error");
-      console.log(errors.length);
-      console.log(ctx.session.user_id);
 
+    if (errors.length > 0 || !ctx.session.user_id) {
       return await ctx.render("error_page", {
         errorCode: 400,
         errorName: "Bad Request!",
         errorMessage: errors || ctx.session
       });
+    }
+    const consentRepository: Repository<Consent> = getManager().getRepository(
+      Consent
+    );
+    const consent: Consent = await consentRepository.findOne({
+      user_id: ctx.session.user_id,
+      client_id: authorizeModel.client_id
+    });
+    if (consent) {
+      if (consent.allow) {
+        const searchParams = new URLSearchParams();
+        searchParams.append("response_type", authorizeModel.response_type);
+        searchParams.append("client_id", authorizeModel.client_id);
+        searchParams.append("redirect_uri", authorizeModel.redirect_uri);
+        searchParams.append("state", authorizeModel.state);
+        searchParams.append("scope", authorizeModel.scope);
+
+        return ctx.redirect("/authorize?" + searchParams.toString());
+      }
     }
 
     return await ctx.render("consent", { query: authorizeModel });
