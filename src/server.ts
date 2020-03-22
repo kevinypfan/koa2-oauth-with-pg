@@ -21,16 +21,16 @@ const bootstrap = async () => {
   }
   var pgStore = new PgStore("postgres://postgres@localhost:5432/member_system");
 
-  const CONFIG = {
-    key: "koa:sess",
-    maxAge: 86400000,
-    autoCommit: true /** (boolean) 自動提交 header 資訊 (預設: true) */,
-    overwrite: true /** (boolean) 可覆蓋若不覆蓋 (看不懂意思) (預設: true) */,
-    httpOnly: true /** (boolean) 是否開啟 httpOnly，也就是要不要給 JavaScript 讀取  (預設: true) */,
-    signed: true /** (boolean) 是否附上簽名 (看不懂意思) (預設: true) */,
-    rolling: false /** (boolean) Force a session identifier cookie to be set on every response. The expiration is reset to the original maxAge, resetting the expiration countdown. (看不懂意思) (預設: is false) */,
-    renew: true /** (boolean) 是否 session 即將到期時自動更新，也就是瀏覽器重新整理後會自動給予新的 session (建議給 true) (預設: is false)*/
-  };
+  // const CONFIG = {
+  //   key: "koa:sess",
+  //   maxAge: 86400000,
+  //   autoCommit: true /** (boolean) 自動提交 header 資訊 (預設: true) */,
+  //   overwrite: true /** (boolean) 可覆蓋若不覆蓋 (看不懂意思) (預設: true) */,
+  //   httpOnly: true /** (boolean) 是否開啟 httpOnly，也就是要不要給 JavaScript 讀取  (預設: true) */,
+  //   signed: true /** (boolean) 是否附上簽名 (看不懂意思) (預設: true) */,
+  //   rolling: false /** (boolean) Force a session identifier cookie to be set on every response. The expiration is reset to the original maxAge, resetting the expiration countdown. (看不懂意思) (預設: is false) */,
+  //   renew: true /** (boolean) 是否 session 即將到期時自動更新，也就是瀏覽器重新整理後會自動給予新的 session (建議給 true) (預設: is false)*/
+  // };
 
   app.use(koaStatic(path.join(__dirname, "./public")));
 

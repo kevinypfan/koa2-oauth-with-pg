@@ -25,7 +25,7 @@ export class TestData {
         ])
         .execute();
       //Return a success message if theer are no errors
-      ctx.body = "Test users created successfully";
+      ctx.body = "Test user created successfully";
 
       //Catch any errors and return a 500 error status to the user is there are errors
     } catch (err) {
@@ -52,7 +52,7 @@ export class TestData {
         ])
         .execute();
       //Return a success message if theer are no errors
-      ctx.body = "Test users created successfully";
+      ctx.body = "Test client created successfully";
 
       //Catch any errors and return a 500 error status to the user is there are errors
     } catch (err) {
