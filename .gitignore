@@ -1,2 +1,4 @@
 node_modules
 dist
+postgres-db.ts
+.env.*

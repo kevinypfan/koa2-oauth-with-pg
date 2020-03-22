@@ -9,4 +9,5 @@ import { Token } from "../models/token";
 import { Client } from "../models/client";
 import { Code } from "../models/code";
 import { Consent } from "../models/consent";
-export const postgresTables = [User, Token, Client, Code, Consent];
+import { Session } from "../models/session";
+export const postgresTables = [User, Token, Client, Code, Consent, Session];

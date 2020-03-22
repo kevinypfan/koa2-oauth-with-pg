@@ -8,11 +8,11 @@ import { postgresTables } from "./postgres-tables";
 export const postgresDB = async () => {
   return await createConnection({
     type: "postgres",
-    host: "localhost",
-    port: 5432,
-    username: "postgres",
-    password: "",
-    database: "member_system",
+    host: process.env.PG_HOST,
+    port: parseInt(process.env.PG_HOST),
+    username: process.env.PG_USERNAME,
+    password: process.env.PG_PASSWORD,
+    database: process.env.PG_DATABASE,
     ssl: false,
     entities: postgresTables,
     logging: ["query", "error"],

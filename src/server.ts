@@ -1,3 +1,4 @@
+import "./utils/config";
 import { postgresDB } from "./databases/postgres-db";
 import app from "./app";
 import { qaRouter } from "./routes/qa-routes";
@@ -19,7 +20,7 @@ const bootstrap = async () => {
   } catch (err) {
     console.log(err);
   }
-  var pgStore = new PgStore("postgres://postgres@localhost:5432/member_system");
+  var pgStore = new PgStore(process.env.PG_URI);
 
   // const CONFIG = {
   //   key: "koa:sess",
@@ -63,6 +64,8 @@ const bootstrap = async () => {
   });
   //Tell the app to listen on port 3000
   await pgStore.setup();
-  app.listen(3000);
+  app.listen(process.env.NODE_PORT, () => {
+    console.log("server start on " + process.env.NODE_PORT + " port");
+  });
 };
 bootstrap();
