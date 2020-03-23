@@ -54,8 +54,8 @@ import { Code } from "../models/code";
 import { generateRandomToken } from "../utils/token-util";
 import { AuthorizeModel } from "../validations/authorize-model";
 import { AuthenticateModel } from "../validations/authenticate-model";
+import { ConsectModel } from "../validations/consent-model";
 import { URLSearchParams, URL } from "url";
-import { Session } from "inspector";
 
 export default class AuthController {
   public static async noautoLogin(ctx: Context & RouterContext) {
@@ -96,7 +96,6 @@ export default class AuthController {
 
     const errors = await validate(authenticateModel);
     if (errors.length > 0) {
-      console.log(errors);
       return await ctx.render("error_page", {
         errorCode: 400,
         errorName: "Bad Request!",
@@ -136,7 +135,7 @@ export default class AuthController {
     searchParams.append("redirect_uri", authenticateModel.redirect_uri);
     searchParams.append("state", authenticateModel.state);
     searchParams.append("scope", authenticateModel.scope);
-
+    searchParams.append("user_id", user.user_id);
     return ctx.redirect("/authorize/consent?" + searchParams.toString());
     // /oauth2/v2.1/authorize/consent?scope=openid+profile&response_type=code&state=init&redirect_uri=https%3A%2F%2Fwww.learningcity.mlc.edu.tw%2Fapi%2Fauth&client_id=1605736550
   }
@@ -243,8 +242,10 @@ export default class AuthController {
                 authorizeModel.redirect_uri + "?" + searchParams.toString()
               );
             } else {
+              const searchParams = new URLSearchParams(ctx.request.querystring);
+              searchParams.append("user_id", ctx.session.user_id);
               return ctx.redirect(
-                "/authorize/consent?" + ctx.request.querystring
+                "/authorize/consent" + "?" + searchParams.toString()
               );
             }
           }
@@ -272,15 +273,12 @@ export default class AuthController {
 
     const errors = await validate(authorizeModel);
     if (errors.length > 0) {
-      console.log("authorizeModel error");
-      console.log(errors);
       return await ctx.render("error_page", {
         errorCode: 400,
         errorName: "Bad Request!",
         errorMessage: errors
       });
     }
-    console.log(`allow => ${ctx.request.body.allow === true}`);
 
     if (ctx.request.body.allow) {
       const consentRepository: Repository<Consent> = getManager().getRepository(
@@ -295,8 +293,6 @@ export default class AuthController {
         consentToBeUpdated.allow = true;
         const errors: ValidationError[] = await validate(consentToBeUpdated); // errors is an array of validation errors
         if (errors.length > 0) {
-          console.log("consentToBeUpdated error");
-          console.log(errors);
           return await ctx.render("error_page", {
             errorCode: 400,
             errorName: "Bad Request!",
@@ -316,8 +312,6 @@ export default class AuthController {
         // validate user entity
         const errors: ValidationError[] = await validate(consentToBeSaved); // errors is an array of validation errors
         if (errors.length > 0) {
-          console.log("consentToBeSaved error");
-          console.log(errors);
           return await ctx.render("error_page", {
             errorCode: 400,
             errorName: "Bad Request!",
@@ -327,6 +321,20 @@ export default class AuthController {
           await consentRepository.save(consentToBeSaved);
         }
       }
+    }
+    if (ctx.request.body.deny) {
+      // https://example.com/callback?error=access_denied&error_description=The+resource+owner+denied+the+request.&state=0987poi
+      const searchParams = new URLSearchParams();
+      searchParams.append("error", "access_denied");
+      searchParams.append(
+        "error_description",
+        "The resource owner denied the request."
+      );
+      searchParams.append("state", authorizeModel.state);
+
+      return ctx.redirect(
+        authorizeModel.redirect_uri + "?" + searchParams.toString()
+      );
     }
     const searchParams = new URLSearchParams();
     searchParams.append("response_type", authorizeModel.response_type);
@@ -339,43 +347,42 @@ export default class AuthController {
   }
 
   public static async getAuthorizeConsent(ctx: Context & RouterContext) {
-    const authorizeModel = new AuthorizeModel();
-    authorizeModel.client_id = ctx.request.query.client_id;
-    authorizeModel.redirect_uri = ctx.request.query.redirect_uri;
-    authorizeModel.response_type = ctx.request.query.response_type;
-    authorizeModel.scope = ctx.request.query.scope;
-    authorizeModel.state = ctx.request.query.state;
-    const errors = await validate(authorizeModel);
+    const consectModelModel = new ConsectModel();
+    consectModelModel.client_id = ctx.request.query.client_id;
+    consectModelModel.redirect_uri = ctx.request.query.redirect_uri;
+    consectModelModel.response_type = ctx.request.query.response_type;
+    consectModelModel.scope = ctx.request.query.scope;
+    consectModelModel.state = ctx.request.query.state;
+    consectModelModel.user_id = ctx.request.query.user_id;
+    const errors = await validate(consectModelModel);
 
-    if (errors.length > 0 || !ctx.session.user_id) {
+    if (errors.length > 0) {
       return await ctx.render("error_page", {
         errorCode: 400,
         errorName: "Bad Request!",
-        errorMessage: errors || ctx.session
+        errorMessage: errors
       });
     }
     const consentRepository: Repository<Consent> = getManager().getRepository(
       Consent
     );
     const consent: Consent = await consentRepository.findOne({
-      user_id: ctx.session.user_id,
-      client_id: authorizeModel.client_id
+      user_id: consectModelModel.user_id,
+      client_id: consectModelModel.client_id
     });
     if (consent) {
       if (consent.allow) {
         const searchParams = new URLSearchParams();
-        searchParams.append("response_type", authorizeModel.response_type);
-        searchParams.append("client_id", authorizeModel.client_id);
-        searchParams.append("redirect_uri", authorizeModel.redirect_uri);
-        searchParams.append("state", authorizeModel.state);
-        searchParams.append("scope", authorizeModel.scope);
+        searchParams.append("response_type", consectModelModel.response_type);
+        searchParams.append("client_id", consectModelModel.client_id);
+        searchParams.append("redirect_uri", consectModelModel.redirect_uri);
+        searchParams.append("state", consectModelModel.state);
+        searchParams.append("scope", consectModelModel.scope);
 
         return ctx.redirect("/authorize?" + searchParams.toString());
       }
     }
-
-    return await ctx.render("consent", { query: authorizeModel });
-
+    return await ctx.render("consent", { query: consectModelModel });
     // if (!user) {
     //   // return a BAD REQUEST status code and error message
     //   return await ctx.render("auth", {

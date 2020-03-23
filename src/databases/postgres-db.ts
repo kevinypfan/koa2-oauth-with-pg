@@ -15,7 +15,7 @@ export const postgresDB = async () => {
     database: process.env.PG_DATABASE,
     ssl: false,
     entities: postgresTables,
-    logging: ["query", "error"],
+    logging: ["error"],
     synchronize: true
   }).then(connection => {
     console.log("Database connection established");
