@@ -55,7 +55,8 @@ import { generateRandomToken } from "../utils/token-util";
 import { AuthorizeModel } from "../validations/authorize-model";
 import { AuthenticateModel } from "../validations/authenticate-model";
 import { ConsectModel } from "../validations/consent-model";
-import { URLSearchParams, URL } from "url";
+import { URLSearchParams } from "url";
+import { urlParser } from "../utils/helper";
 
 export default class AuthController {
   public static async noautoLogin(ctx: Context & RouterContext) {
@@ -76,6 +77,7 @@ export default class AuthController {
     }
     // errorMessage=ACCOUNT_LOGIN_FAIL&errorCode=445
     return await ctx.render("auth", {
+      prefixPath: process.env.PREFIX_PATH,
       query: authorizeModel,
       error: false
     });
@@ -111,6 +113,7 @@ export default class AuthController {
     if (!user) {
       // return a BAD REQUEST status code and error message
       return await ctx.render("auth", {
+        prefixPath: process.env.PREFIX_PATH,
         query: authenticateModel,
         error: true
       });
@@ -122,6 +125,7 @@ export default class AuthController {
 
     if (!comparedPass) {
       return await ctx.render("auth", {
+        prefixPath: process.env.PREFIX_PATH,
         query: authenticateModel,
         error: true
       });
@@ -136,7 +140,9 @@ export default class AuthController {
     searchParams.append("state", authenticateModel.state);
     searchParams.append("scope", authenticateModel.scope);
     searchParams.append("user_id", user.user_id);
-    return ctx.redirect("/authorize/consent?" + searchParams.toString());
+    return ctx.redirect(
+      process.env.PREFIX_PATH + "/authorize/consent?" + searchParams.toString()
+    );
     // /oauth2/v2.1/authorize/consent?scope=openid+profile&response_type=code&state=init&redirect_uri=https%3A%2F%2Fwww.learningcity.mlc.edu.tw%2Fapi%2Fauth&client_id=1605736550
   }
 
@@ -170,14 +176,14 @@ export default class AuthController {
       }
 
       const clientRedirectUris = client.redirect_uris.split(",");
-      const clientRedirectUrisParsered = clientRedirectUris.map(item => {
-        let redirectUri = new URL(item);
-        return redirectUri.origin + redirectUri.pathname;
-      });
+      const clientRedirectUrisParsered = clientRedirectUris.map(item =>
+        urlParser(item)
+      );
+      // http://localhost:3000/oauth2/v2.1/authorize?response_type=code&client_id=a8828ba0-2a55-471d-b2fc-fd85f1777d23&redirect_uri=http://localhost:3000/hello&state=init&scope=profile
+      let parseUrl = urlParser(authorizeModel.redirect_uri);
+      console.log(clientRedirectUrisParsered, parseUrl);
 
-      let redirectUri = new URL(authorizeModel.redirect_uri);
-      let parseUrl = redirectUri.origin + redirectUri.pathname;
-
+      console.log(parseUrl);
       if (!clientRedirectUrisParsered.includes(parseUrl)) {
         throw "redirect_uri has wrong";
       }
@@ -245,13 +251,18 @@ export default class AuthController {
               const searchParams = new URLSearchParams(ctx.request.querystring);
               searchParams.append("user_id", ctx.session.user_id);
               return ctx.redirect(
-                "/authorize/consent" + "?" + searchParams.toString()
+                process.env.PREFIX_PATH +
+                  "/authorize/consent" +
+                  "?" +
+                  searchParams.toString()
               );
             }
           }
         }
       }
-      return ctx.redirect("/noauto-login?" + ctx.request.querystring);
+      return ctx.redirect(
+        process.env.PREFIX_PATH + "/noauto-login?" + ctx.request.querystring
+      );
     } catch (error) {
       return await ctx.render("error_page", {
         errorCode: 400,
@@ -332,6 +343,7 @@ export default class AuthController {
       );
       searchParams.append("state", authorizeModel.state);
 
+      console.log(authorizeModel.redirect_uri);
       return ctx.redirect(
         authorizeModel.redirect_uri + "?" + searchParams.toString()
       );
@@ -343,7 +355,9 @@ export default class AuthController {
     searchParams.append("state", authorizeModel.state);
     searchParams.append("scope", authorizeModel.scope);
 
-    return ctx.redirect("/authorize?" + searchParams.toString());
+    return ctx.redirect(
+      process.env.PREFIX_PATH + "/authorize?" + searchParams.toString()
+    );
   }
 
   public static async getAuthorizeConsent(ctx: Context & RouterContext) {
@@ -379,10 +393,15 @@ export default class AuthController {
         searchParams.append("state", consectModelModel.state);
         searchParams.append("scope", consectModelModel.scope);
 
-        return ctx.redirect("/authorize?" + searchParams.toString());
+        return ctx.redirect(
+          process.env.PREFIX_PATH + "/authorize?" + searchParams.toString()
+        );
       }
     }
-    return await ctx.render("consent", { query: consectModelModel });
+    return await ctx.render("consent", {
+      prefixPath: process.env.PREFIX_PATH,
+      query: consectModelModel
+    });
     // if (!user) {
     //   // return a BAD REQUEST status code and error message
     //   return await ctx.render("auth", {

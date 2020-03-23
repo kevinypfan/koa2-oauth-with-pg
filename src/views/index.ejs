@@ -7,7 +7,7 @@
           <p>個人檔案(必要資訊)</p>
           <p>您的姓名（阿哲）、個人圖片和狀態消息</p>
         </div>
-        <form action="/authorize/consent"></form>
+        <form action="<%= prefixPath %>/authorize/consent"></form>
         <input type="hidden" name="client_id" value="<%= query.client_id %>" />
         <div class="card-action">
           <button
