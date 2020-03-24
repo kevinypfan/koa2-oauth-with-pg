@@ -27,6 +27,9 @@ export class Code {
   expires_in: Date;
 
   @Column("text")
+  scope: string;
+
+  @Column("text")
   @IsDefined()
   redirect_uri: string;
 

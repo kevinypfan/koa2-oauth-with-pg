@@ -10,6 +10,7 @@ import { validate, ValidationError } from "class-validator";
 import { URL } from "url";
 import * as bcrypt from "bcryptjs";
 import * as moment from "moment";
+import * as jwt from "jsonwebtoken";
 
 import { Client } from "../models/client";
 import { Code } from "../models/code";
@@ -18,6 +19,16 @@ import { Token } from "../models/token";
 
 import { genToken } from "../utils/access-token-util";
 import { urlParser } from "../utils/helper";
+
+interface IdTokenObject {
+  iss?: string;
+  sub?: string;
+  aud?: string;
+  iat?: number;
+  exp?: number;
+  name?: string;
+  email?: string;
+}
 
 export default class TokenController {
   public static async postRevokeToken(ctx: Context & RouterContext) {
@@ -118,185 +129,228 @@ export default class TokenController {
         throw "client_id or client_secret has wrong!";
       }
 
-      switch (tokenModel.grant_type) {
-        case "authorization_code":
-          const codeModel = new CodeModel();
-          codeModel.code = ctx.request.body.code;
-          codeModel.redirect_uri = ctx.request.body.redirect_uri;
+      if (tokenModel.grant_type === "authorization_code") {
+        const codeModel = new CodeModel();
+        codeModel.code = ctx.request.body.code;
+        codeModel.redirect_uri = ctx.request.body.redirect_uri;
 
-          const codeErrors = await validate(codeModel);
-          if (codeErrors.length > 0) {
-            throw codeErrors;
-          }
-          if (!client.grants.includes("authorization_code")) {
-            throw "The client no accept authorization_code grant_type!";
-          }
+        const codeErrors = await validate(codeModel);
+        if (codeErrors.length > 0) {
+          throw codeErrors;
+        }
+        if (!client.grants.includes("authorization_code")) {
+          throw "The client no accept authorization_code grant_type!";
+        }
 
-          const clientRedirectUris = client.redirect_uris.split(",");
-          const clientRedirectUrisParsered = clientRedirectUris.map(item =>
-            urlParser(item)
-          );
-          let parseUrl = urlParser(codeModel.redirect_uri);
+        const clientRedirectUris = client.redirect_uris.split(",");
+        const clientRedirectUrisParsered = clientRedirectUris.map(item =>
+          urlParser(item)
+        );
+        let parseUrl = urlParser(codeModel.redirect_uri);
 
-          if (!clientRedirectUrisParsered.includes(parseUrl)) {
-            throw "redirect_uri has wrong";
-          }
+        if (!clientRedirectUrisParsered.includes(parseUrl)) {
+          throw "redirect_uri has wrong";
+        }
 
-          const codeRepository: Repository<Code> = getManager().getRepository(
-            Code
-          );
-          const code: Code = await codeRepository.findOne({
-            client_id: tokenModel.client_id,
-            authorization_code: codeModel.code
-          });
+        const codeRepository: Repository<Code> = getManager().getRepository(
+          Code
+        );
+        const code: Code = await codeRepository.findOne({
+          client_id: tokenModel.client_id,
+          authorization_code: codeModel.code
+        });
 
-          if (!code) {
-            throw "code has wrong!";
-          }
+        if (!code) {
+          throw "code has wrong!";
+        }
 
-          if (code.revoked) {
-            throw "The authorization_code has been used!";
-          }
+        if (code.revoked) {
+          throw "The authorization_code has been used!";
+        }
 
-          if (new Date() > new Date(code.expires_in)) {
-            throw "The authorization_code was expired!";
-          }
-          if (parseUrl !== code.redirect_uri) {
-            throw "redirect_uri has wrong!";
-          }
-          const newAuthorizationCodeTokenObj: Object = await genToken(
-            code.client_id,
-            code.user_id,
-            client.scope
-          );
+        if (new Date() > new Date(code.expires_in)) {
+          throw "The authorization_code was expired!";
+        }
+        if (parseUrl !== code.redirect_uri) {
+          throw "redirect_uri has wrong!";
+        }
 
-          const responseAuthorizationCodeToken = {
-            ...newAuthorizationCodeTokenObj,
-            token_type: "Bearer"
-          };
-          responseAuthorizationCodeToken["expires_in"] = new Date(
-            responseAuthorizationCodeToken["expires_in"]
-          ).valueOf();
-          delete responseAuthorizationCodeToken["id"];
-          delete responseAuthorizationCodeToken["revoked"];
-          delete responseAuthorizationCodeToken["created_at"];
-          delete responseAuthorizationCodeToken["updated_at"];
+        const userRepository: Repository<User> = getManager().getRepository(
+          User
+        );
+        // load user by id
+        const user: User = await userRepository.findOne({
+          user_id: code.user_id
+        });
 
-          await codeRepository.update(code.id, {
-            revoked: true
-          });
-          return (ctx.body = responseAuthorizationCodeToken);
-        case "password":
-          if (!client.grants.includes("password")) {
-            throw "The client no accept password grant_type!";
-          }
-          const passwordModel = new PasswordModel();
+        if (!user) {
+          // return a BAD REQUEST status code and error message
+          throw "system not found user";
+        }
 
-          passwordModel.email = ctx.request.body.email;
-          passwordModel.password = ctx.request.body.password;
+        const idTokenData: IdTokenObject = {
+          iss: process.env.HOSTNAME,
+          sub: user.user_id,
+          aud: client.client_id
+        };
 
-          const passwordErrors = await validate(passwordModel);
-          if (passwordErrors.length > 0) {
-            throw passwordErrors;
-          }
+        if (code.scope.split(",").includes("profile")) {
+          idTokenData.name = user.username;
+          idTokenData.email = user.email;
+        }
 
-          const userRepository: Repository<User> = getManager().getRepository(
-            User
-          );
-          // load user by id
-          const user: User = await userRepository.findOne({
-            email: passwordModel.email
-          });
+        const idToken = jwt.sign(idTokenData, client.client_secret, {
+          expiresIn: "30 days"
+        });
 
-          if (!user) {
-            // return a BAD REQUEST status code and error message
-            throw "email or password has wrong!";
-          }
-          const comparedPass: boolean = bcrypt.compareSync(
-            passwordModel.password,
-            user.password
-          );
+        const newAuthorizationCodeTokenObj: Object = await genToken(
+          code.client_id,
+          code.user_id,
+          client.scope
+        );
 
-          if (!comparedPass) {
-            throw "email or password has wrong!";
-          }
-          const newPasswordTokenObj: Object = await genToken(
-            tokenModel.client_id,
-            user.user_id,
-            client.scope
-          );
+        const responseAuthorizationCodeToken = {
+          ...newAuthorizationCodeTokenObj,
+          token_type: "Bearer",
+          id_token: idToken
+        };
+        responseAuthorizationCodeToken["expires_in"] = new Date(
+          responseAuthorizationCodeToken["expires_in"]
+        ).valueOf();
+        delete responseAuthorizationCodeToken["id"];
+        delete responseAuthorizationCodeToken["revoked"];
+        delete responseAuthorizationCodeToken["created_at"];
+        delete responseAuthorizationCodeToken["updated_at"];
 
-          const responsePasswordToken = {
-            ...newPasswordTokenObj,
-            token_type: "Bearer"
-          };
-          responsePasswordToken["expires_in"] = new Date(
-            responsePasswordToken["expires_in"]
-          ).valueOf();
-          delete responsePasswordToken["id"];
-          delete responsePasswordToken["revoked"];
-          delete responsePasswordToken["created_at"];
-          delete responsePasswordToken["updated_at"];
+        await codeRepository.update(code.id, {
+          revoked: true
+        });
+        return (ctx.body = responseAuthorizationCodeToken);
+      } else if (tokenModel.grant_type === "password") {
+        if (!client.grants.includes("password")) {
+          throw "The client no accept password grant_type!";
+        }
+        const passwordModel = new PasswordModel();
 
-          return (ctx.body = responsePasswordToken);
+        passwordModel.email = ctx.request.body.email;
+        passwordModel.password = ctx.request.body.password;
 
-        case "refresh_token":
-          const refreshModel: RefreshModel = new RefreshModel();
-          refreshModel.refresh_token = ctx.request.body.refresh_token;
-          const refreshErrors = await validate(refreshModel);
-          if (refreshErrors.length > 0) {
-            throw refreshErrors;
-          }
-          const tokenRepository: Repository<Token> = getManager().getRepository(
-            Token
-          );
-          const oldToken = await tokenRepository.findOne({
-            refresh_token: refreshModel.refresh_token
-          });
+        const passwordErrors = await validate(passwordModel);
+        if (passwordErrors.length > 0) {
+          throw passwordErrors;
+        }
 
-          if (!oldToken) {
-            throw "Not found refresh token!";
-          }
+        const userRepository: Repository<User> = getManager().getRepository(
+          User
+        );
+        // load user by id
+        const user: User = await userRepository.findOne({
+          email: passwordModel.email
+        });
 
-          if (oldToken.revoked) {
-            throw "refresh token has been used!";
-          }
+        if (!user) {
+          // return a BAD REQUEST status code and error message
+          throw "email or password has wrong!";
+        }
+        const comparedPass: boolean = bcrypt.compareSync(
+          passwordModel.password,
+          user.password
+        );
 
-          if (
-            new Date() >
-            moment(new Date(oldToken.expires_in))
-              .add(10, "days")
-              .toDate()
-          ) {
-            throw "refresh token expired!";
-          }
-          await tokenRepository.update(oldToken.id, {
-            revoked: true
-          });
+        if (!comparedPass) {
+          throw "email or password has wrong!";
+        }
 
-          const newRefreshModelObj: Object = await genToken(
-            client.client_id,
-            oldToken.user_id,
-            client.scope
-          );
+        const idTokenData: IdTokenObject = {
+          iss: process.env.HOSTNAME,
+          sub: user.user_id,
+          aud: client.client_id
+        };
 
-          const responseRefreshModel = {
-            ...newRefreshModelObj,
-            token_type: "Bearer"
-          };
-          responseRefreshModel["expires_in"] = new Date(
-            responseRefreshModel["expires_in"]
-          ).valueOf();
-          delete responseRefreshModel["id"];
-          delete responseRefreshModel["revoked"];
-          delete responseRefreshModel["created_at"];
-          delete responseRefreshModel["updated_at"];
+        if (client.scope.split(",").includes("profile")) {
+          idTokenData.name = user.username;
+          idTokenData.email = user.email;
+        }
 
-          return (ctx.body = responseRefreshModel);
+        const idToken = jwt.sign(idTokenData, client.client_secret, {
+          expiresIn: "30 days"
+        });
 
-        default:
-          throw "grant_type has wrong";
+        const newPasswordTokenObj: Object = await genToken(
+          tokenModel.client_id,
+          user.user_id,
+          client.scope
+        );
+
+        const responsePasswordToken = {
+          ...newPasswordTokenObj,
+          token_type: "Bearer",
+          id_token: idToken
+        };
+        responsePasswordToken["expires_in"] = new Date(
+          responsePasswordToken["expires_in"]
+        ).valueOf();
+        delete responsePasswordToken["id"];
+        delete responsePasswordToken["revoked"];
+        delete responsePasswordToken["created_at"];
+        delete responsePasswordToken["updated_at"];
+
+        return (ctx.body = responsePasswordToken);
+      } else if (tokenModel.grant_type === "refresh_token") {
+        const refreshModel: RefreshModel = new RefreshModel();
+        refreshModel.refresh_token = ctx.request.body.refresh_token;
+        const refreshErrors = await validate(refreshModel);
+        if (refreshErrors.length > 0) {
+          throw refreshErrors;
+        }
+        const tokenRepository: Repository<Token> = getManager().getRepository(
+          Token
+        );
+        const oldToken = await tokenRepository.findOne({
+          refresh_token: refreshModel.refresh_token
+        });
+
+        if (!oldToken) {
+          throw "Not found refresh token!";
+        }
+
+        if (oldToken.revoked) {
+          throw "refresh token has been used!";
+        }
+
+        if (
+          new Date() >
+          moment(new Date(oldToken.expires_in))
+            .add(10, "days")
+            .toDate()
+        ) {
+          throw "refresh token expired!";
+        }
+        await tokenRepository.update(oldToken.id, {
+          revoked: true
+        });
+
+        const newRefreshModelObj: Object = await genToken(
+          client.client_id,
+          oldToken.user_id,
+          client.scope
+        );
+
+        const responseRefreshModel = {
+          ...newRefreshModelObj,
+          token_type: "Bearer"
+        };
+        responseRefreshModel["expires_in"] = new Date(
+          responseRefreshModel["expires_in"]
+        ).valueOf();
+        delete responseRefreshModel["id"];
+        delete responseRefreshModel["revoked"];
+        delete responseRefreshModel["created_at"];
+        delete responseRefreshModel["updated_at"];
+
+        return (ctx.body = responseRefreshModel);
       }
+      throw "grant_type has wrong";
     } catch (error) {
       ctx.status = 400;
       ctx.body = {

@@ -232,6 +232,7 @@ export default class AuthController {
               codeToBeSaved.authorization_code = authorization_code;
               codeToBeSaved.expires_in = expires_in;
               codeToBeSaved.redirect_uri = authorizeModel.redirect_uri;
+              codeToBeSaved.scope = authorizeModel.scope;
               // validate user entity
               const errors: ValidationError[] = await validate(codeToBeSaved); // errors is an array of validation errors
               if (errors.length > 0) {
