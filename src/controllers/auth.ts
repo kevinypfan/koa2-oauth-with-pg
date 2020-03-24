@@ -179,7 +179,6 @@ export default class AuthController {
       const clientRedirectUrisParsered = clientRedirectUris.map(item =>
         urlParser(item)
       );
-      // http://localhost:3000/oauth2/v2.1/authorize?response_type=code&client_id=a8828ba0-2a55-471d-b2fc-fd85f1777d23&redirect_uri=http://localhost:3000/hello&state=init&scope=profile
       let parseUrl = urlParser(authorizeModel.redirect_uri);
       console.log(clientRedirectUrisParsered, parseUrl);
 

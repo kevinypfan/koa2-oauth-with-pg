@@ -17,6 +17,7 @@ import { User } from "../models/user";
 import { Token } from "../models/token";
 
 import { genToken } from "../utils/access-token-util";
+import { urlParser } from "../utils/helper";
 
 export default class TokenController {
   public static async postRevokeToken(ctx: Context & RouterContext) {
@@ -130,14 +131,17 @@ export default class TokenController {
           if (!client.grants.includes("authorization_code")) {
             throw "The client no accept authorization_code grant_type!";
           }
+
           const clientRedirectUris = client.redirect_uris.split(",");
+          const clientRedirectUrisParsered = clientRedirectUris.map(item =>
+            urlParser(item)
+          );
+          let parseUrl = urlParser(codeModel.redirect_uri);
 
-          let redirectUri = new URL(codeModel.redirect_uri);
-          let parseUrl = redirectUri.origin + redirectUri.pathname;
-
-          if (!clientRedirectUris.includes(parseUrl)) {
+          if (!clientRedirectUrisParsered.includes(parseUrl)) {
             throw "redirect_uri has wrong";
           }
+
           const codeRepository: Repository<Code> = getManager().getRepository(
             Code
           );

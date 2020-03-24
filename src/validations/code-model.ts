@@ -5,6 +5,5 @@ export class CodeModel {
   code: string;
 
   @IsDefined()
-  @IsUrl()
   redirect_uri: string;
 }
