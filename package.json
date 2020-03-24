@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon",
     "build": "tsc",
-    "prod": "cross-env NODE_ENV=production node ./dist/server.js"
+    "prod": "cross-env NODE_ENV=production node ./dist/server.js",
+    "copy-files": "copyfiles -u 1 src/**/{*.ejs,*.css,*.js,*.eot,*.svg,*.png,*.jpg,*.jpeg,*.gif,*.ico,*.ttf,*.woff,*.woff2,*.otf,*.less,*.scss,*.txt} public dist/"
   },
   "devDependencies": {
     "nodemon": "^2.0.2",
@@ -26,6 +27,7 @@
     "@types/node": "^13.7.7",
     "bcryptjs": "^2.4.3",
     "class-validator": "^0.11.0",
+    "copyfiles": "^2.2.0",
     "cross-env": "^7.0.2",
     "dotenv": "^8.2.0",
     "ejs": "^3.0.1",
