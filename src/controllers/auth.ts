@@ -78,6 +78,7 @@ export default class AuthController {
     // errorMessage=ACCOUNT_LOGIN_FAIL&errorCode=445
     return await ctx.render("auth", {
       prefixPath: process.env.PREFIX_PATH,
+      querystring: ctx.request.querystring,
       query: authorizeModel,
       error: false
     });
